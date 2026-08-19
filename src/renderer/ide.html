@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ABUZ8 — ASRED Dev IDE</title>
+<style>
+  :root{ --bg:#FAF8F5; --panel:#fff; --ink:#23201b; --ink2:#6b6358; --accent:#C8A55C; --line:#e8e2d8; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:'DM Sans',system-ui,Arial,sans-serif; background:var(--bg); color:var(--ink); height:100vh; display:flex; flex-direction:column; }
+  .top{ display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--line); }
+  .top b{ color:var(--accent); letter-spacing:.5px; }
+  select,button,input{ font-family:inherit; font-size:13px; border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:8px; padding:6px 10px; cursor:pointer; }
+  button:hover{ border-color:var(--accent); }
+  button.primary{ background:var(--accent); color:#23201b; border-color:var(--accent); font-weight:600; }
+  .main{ flex:1; display:grid; grid-template-columns:230px 1fr 360px; min-height:0; }
+  .tree,.side{ background:var(--panel); overflow:auto; padding:8px; }
+  .tree{ border-right:1px solid var(--line); }
+  .side{ border-left:1px solid var(--line); display:flex; flex-direction:column; }
+  .tree .f{ padding:4px 8px; border-radius:6px; cursor:pointer; font-size:12.5px; color:var(--ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tree .f:hover{ background:var(--bg); }
+  .tree .f.on{ background:#f3ecdd; color:var(--ink); }
+  #editor{ min-height:0; }
+  .side h3{ margin:4px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--ink2); }
+  #out,#dev{ background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px; font:12px/1.5 ui-monospace,Consolas,monospace; white-space:pre-wrap; overflow:auto; color:#2a2a2a; }
+  #out{ height:130px; } #dev{ flex:1; min-height:120px; margin-top:8px; }
+  textarea#task{ width:100%; height:54px; resize:vertical; border:1px solid var(--line); border-radius:8px; padding:8px; font-family:inherit; }
+  .muted{ color:var(--ink2); font-size:11.5px; }
+</style>
+</head>
+<body>
+  <div class="top">
+    <b>ASRED · DEV SPEC-OPS</b>
+    <select id="proj" title="Project"></select>
+    <input id="newproj" placeholder="new project…" style="width:120px">
+    <button onclick="mkproj()">+ New</button>
+    <button onclick="saveFile()">Save</button>
+    <button class="primary" onclick="runProj()">▶ Run</button>
+    <span id="status" class="muted" style="margin-left:auto"></span>
+  </div>
+  <div class="main">
+    <div class="tree" id="tree"></div>
+    <div id="editor"></div>
+    <div class="side">
+      <h3>Run output</h3>
+      <div id="out" class="muted">Run a project to see output.</div>
+      <h3 style="margin-top:10px">ASRED — solve any problem (local Qwen3-Coder)</h3>
+      <textarea id="task" placeholder="Describe the problem; the local dev spec-ops team breaks it down + delivers a solution…"></textarea>
+      <div style="display:flex;gap:6px;margin:6px 0"><button class="primary" style="flex:1" onclick="solve()">Break down & solve</button></div>
+      <div id="dev" class="muted">Sovereign — runs on your GPU, nothing leaves the machine.</div>
+    </div>
+  </div>
+<script src="/vendor/monaco/vs/loader.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+let editor, curFile=null;
+async function api(p,b){ const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}); return r.json(); }
+function langOf(f){ const e=(f.split('.').pop()||'').toLowerCase(); return ({js:'javascript',ts:'typescript',jsx:'javascript',tsx:'typescript',py:'python',json:'json',html:'html',css:'css',md:'markdown',sh:'shell',go:'go',rs:'rust',java:'java',c:'c',cpp:'cpp',yml:'yaml',yaml:'yaml'})[e]||'plaintext'; }
+window.MonacoEnvironment={ getWorkerUrl:()=>URL.createObjectURL(new Blob(["self.MonacoEnvironment={baseUrl:location.origin+'/vendor/monaco/'};importScripts(location.origin+'/vendor/monaco/vs/base/worker/workerMain.js');"],{type:'text/javascript'})) };
+require.config({ paths:{ vs:'/vendor/monaco/vs' }});
+require(['vs/editor/editor.main'],function(){
+  editor=monaco.editor.create($('#editor'),{ value:'// Pick a file from the tree, or ask ASRED to build one.\n', language:'javascript', theme:'vs', automaticLayout:true, fontSize:13, minimap:{enabled:false} });
+  loadProjects();
+});
+async function loadProjects(){ const d=await api('/api/coder/projects'); const sel=$('#proj'); sel.innerHTML=''; (d.projects||[]).forEach(p=>{ const o=document.createElement('option'); o.value=p.name; o.textContent=p.name+' ('+p.files+')'; sel.appendChild(o); }); sel.onchange=loadTree; if((d.projects||[]).length) loadTree(); }
+async function mkproj(){ const n=$('#newproj').value.trim(); if(!n) return; await api('/api/coder/write',{project:n,relpath:'README.md',content:'# '+n+'\n'}); $('#newproj').value=''; await loadProjects(); $('#proj').value=n; loadTree(); }
+async function loadTree(){ const proj=$('#proj').value; if(!proj) return; const d=await api('/api/coder/files',{project:proj}); const t=$('#tree'); t.innerHTML=''; (d.files||[]).forEach(f=>{ const el=document.createElement('div'); el.className='f'; el.textContent=f; el.onclick=()=>openFile(f,el); t.appendChild(el); }); }
+async function openFile(f,el){ const proj=$('#proj').value; const d=await api('/api/coder/file',{project:proj,path:f}); if(d.ok){ curFile=f; editor.setValue(d.contents||''); monaco.editor.setModelLanguage(editor.getModel(),langOf(f)); document.querySelectorAll('.tree .f').forEach(x=>x.classList.remove('on')); el&&el.classList.add('on'); $('#status').textContent=f; } }
+async function saveFile(){ if(!curFile){ $('#status').textContent='no file open'; return; } const proj=$('#proj').value; const r=await api('/api/coder/write',{project:proj,relpath:curFile,content:editor.getValue()}); $('#status').textContent=r.ok?('saved '+curFile+' ('+r.bytes+'b)'):('save failed: '+r.error); }
+async function runProj(){ const proj=$('#proj').value; $('#out').textContent='Running…'; const r=await api('/api/coder/run',{project:proj,goal:'run and report output of this project'}); $('#out').textContent=JSON.stringify(r,null,2).slice(0,4000); loadTree(); }
+async function solve(){ const task=$('#task').value.trim(); if(!task) return; $('#dev').textContent='ASRED is breaking it down (local GPU)…'; const r=await api('/api/devteam/solve',{task}); $('#dev').textContent=r.ok?r.solution:('Error: '+r.error); }
+</script>
+</body>
+</html>

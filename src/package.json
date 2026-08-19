@@ -1,0 +1,155 @@
+{
+  "name": "abuz8-os",
+  "version": "1.51.0",
+  "description": "ABUZ8 OS — Sovereign Desktop AI Operator",
+  "main": "main.js",
+  "author": "ABUZ8 LLC <support@abuz8ai.com>",
+  "homepage": "https://abuz8ai.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/abuz8studios-ship-it/abuz8-os.git"
+  },
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "headless": "node ../scripts/headless.js",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux",
+    "test": "node ../scripts/smoke.js",
+    "lint:routes": "node ../scripts/lint-routes.js portable-core.js"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.abuz8.os",
+    "productName": "ABUZ8 OS",
+    "copyright": "Copyright © 2026 ABUZ8 LLC",
+    "asar": true,
+    "npmRebuild": false,
+    "asarUnpack": [
+      "**/node_modules/node-pty/**"
+    ],
+    "directories": {
+      "output": "../dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "**/*",
+      "!**/*.bak-*",
+      "!**/node_modules/.cache"
+    ],
+    "extraResources": [
+      {
+        "from": "mcp",
+        "to": "mcp",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../build-assets/brain",
+        "to": "brain",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../build-assets/skills",
+        "to": "skills",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../build-assets/voice",
+        "to": "voice",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../build-assets/tor",
+        "to": "tor",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "ABUZ8-OS-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "artifactName": "ABUZ8-OS-${version}-${arch}.${ext}"
+    },
+    "dmg": {
+      "title": "ABUZ8 OS ${version}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Utility",
+      "maintainer": "ABUZ8 LLC <support@abuz8ai.com>",
+      "synopsis": "Sovereign, local-first desktop AI operator — no fees, your data stays on your machine.",
+      "artifactName": "ABUZ8-OS-${version}-${arch}.${ext}"
+    }
+  },
+  "dependencies": {
+    "node-pty": "1.1.0"
+  }
+}

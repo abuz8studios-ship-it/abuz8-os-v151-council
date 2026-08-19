@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+dist
+electron
+release
+vm-tests
+iso
+out
+build-assets
+*.gguf
+*.exe
+*.dll
+*.7z
+*.zip
+.git

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ABUZ8 Editor — Timeline</title>
+<style>
+  :root { --bg:#FAF8F5; --ink:#1c1a17; --muted:#6b655c; --gold:#C8A55C; --line:#e7e1d8; --card:#fff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:'DM Sans',system-ui,Segoe UI,Arial,sans-serif; }
+  header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
+  header h1 { font-size:17px; margin:0; }
+  header .muted { color:var(--muted); font-size:13px; }
+  main { padding:20px 24px; max-width:1100px; margin:0 auto; }
+  .add { display:flex; gap:8px; flex-wrap:wrap; align-items:end; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  label { font-size:12px; color:var(--muted); display:block; margin-bottom:4px; }
+  input { border:1px solid var(--line); border-radius:8px; padding:8px; font-family:inherit; font-size:14px; background:#fff; }
+  button { background:var(--gold); color:#1c1a17; border:0; border-radius:9px; padding:9px 15px; font-weight:600; cursor:pointer; }
+  button.alt { background:#fff; border:1px solid var(--line); }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin:22px 0 8px; }
+  .track { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; min-height:84px; display:flex; gap:8px; overflow-x:auto; }
+  .clip { background:linear-gradient(180deg,#fff,#f6efe1); border:1px solid var(--gold); border-radius:9px; padding:8px 10px; min-width:120px; position:relative; }
+  .clip .t { font-size:13px; font-weight:600; }
+  .clip .d { font-size:11px; color:var(--muted); }
+  .clip .x { position:absolute; top:4px; right:6px; cursor:pointer; color:var(--muted); }
+  video { width:100%; max-width:760px; border:1px solid var(--line); border-radius:12px; margin-top:10px; background:#000; }
+  .muted { color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<header><h1>ABUZ8 Editor</h1><span class="muted">CapCut-style timeline · clips → ffmpeg → mp4 on the 5090</span></header>
+<main>
+  <div class="add">
+    <div><label>Source (image/video path, or blank = color card)</label><input id="src" size="40" placeholder="E:\ABU\ComfyUI\output\abuz8_studio_00002_.png" /></div>
+    <div><label>Seconds</label><input id="dur" type="number" value="3" style="width:80px" /></div>
+    <div><label>Text overlay (optional)</label><input id="text" size="22" placeholder="Scene 1" /></div>
+    <button onclick="addClip()">+ Add clip</button>
+  </div>
+  <h2>Timeline</h2>
+  <div class="track" id="track"><span class="muted" style="align-self:center">No clips yet — add one above.</span></div>
+  <div style="margin-top:14px; display:flex; gap:8px; align-items:center">
+    <input id="name" placeholder="project name" value="my-edit" />
+    <button onclick="render()">Render mp4</button>
+    <button class="alt" onclick="save()">Save timeline</button>
+    <span class="muted" id="status"></span>
+  </div>
+  <div id="out"></div>
+</main>
+<script>
+const $=id=>document.getElementById(id); let clips=[];
+function draw(){ const t=$('track'); if(!clips.length){ t.innerHTML='<span class="muted" style="align-self:center">No clips yet — add one above.</span>'; return; } t.innerHTML=clips.map((c,i)=>`<div class="clip"><span class="x" onclick="del(${i})">✕</span><div class="t">${(c.src? c.src.split(/[\\\\/]/).pop():'color')||'color'}</div><div class="d">${c.dur}s${c.text?(' · "'+c.text+'"'):''}</div></div>`).join(''); }
+function addClip(){ clips.push({ src:$('src').value.trim(), dur:Number($('dur').value)||3, text:$('text').value.trim() }); $('src').value=''; $('text').value=''; draw(); }
+function del(i){ clips.splice(i,1); draw(); }
+async function api(p,b){ const r=await fetch(p,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}); return r.json(); }
+function timeline(){ return { name:$('name').value||'my-edit', w:1280, h:720, fps:30, clips }; }
+async function save(){ const r=await api('/api/spine/editor/save',{name:$('name').value,timeline:timeline()}); $('status').textContent = r.ok?('saved '+r.id):'save failed'; }
+async function render(){ if(!clips.length){ $('status').textContent='add a clip first'; return; } $('status').textContent='rendering on the 5090…'; const r=await api('/api/spine/editor/render',{timeline:timeline()}); if(r.ok){ $('status').textContent=`done · ${r.clips} clips · ${Math.round(r.bytes/1024)} KB`; $('out').innerHTML='<video src="'+r.media+'" controls autoplay loop></video>'; } else { $('status').textContent='render failed: '+(r.error||r.detail||''); } }
+draw();
+</script>
+</body>
+</html>

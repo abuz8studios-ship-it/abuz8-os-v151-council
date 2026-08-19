@@ -1,0 +1,54 @@
+# Build output
+app.asar
+build/
+dist/
+electron/
+release/
+vm-tests/
+iso/
+out/
+*.bak
+*.bak-*
+*.7z
+*.zip
+*.nsis.7z
+*.blockmap
+LICENSES.chromium.html
+LICENSE.electron.txt
+
+# Binary assets (too large for git — see BUILD.md to obtain)
+resources/brain/
+resources/mcp/node.exe
+*.gguf
+*.exe
+*.dll
+*.pak
+*.bin
+*.dat
+
+# Node
+node_modules/
+
+# Secrets — never commit real keys
+**/providers.local.json
+*.key
+.env
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Voice engine payload (staged at build, like the brain GGUFs)
+build-assets/voice/
+*.onnx
+
+# Tor expert bundle (staged at build, ~21MB binaries — see #9; download in BUILD)
+build-assets/tor/
+.gstack/
+evidence/
+_live_page.html
+package-lock.json
+src/package-lock.json
+
+# python bytecode from local runners (TripoSR etc.)
+scripts/**/__pycache__/

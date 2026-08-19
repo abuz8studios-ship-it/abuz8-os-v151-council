@@ -1,0 +1,71 @@
+#!/usr/bin/env node
+// Behavioral smoke suite — boots the engine headless on a scratch port + asserts the
+// high-value/destructive endpoints actually WORK (not just that the file parses). Runs in CI
+// so a behaviorally-broken change is caught on push/PR, not only inside the self-upgrade path.
+const os = require('os'); const path = require('path'); const fs = require('fs'); const http = require('http');
+process.env.ABUZ8_DATA_DIR = path.join(os.tmpdir(), 'abuz8_smoke_' + process.pid);
+fs.mkdirSync(path.join(process.env.ABUZ8_DATA_DIR, 'config'), { recursive: true });
+process.env.ABUZ8_PORT = '0';
+const pc = require(path.join(__dirname, '..', 'src', 'portable-core.js'));
+function req(port, p, m, o) { return new Promise((resolve) => { const d = o ? JSON.stringify(o) : null; const r = http.request({ host: '127.0.0.1', port, path: p, method: m, headers: d ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(d) } : {} }, (res) => { let b = ''; res.on('data', c => b += c); res.on('end', () => resolve({ status: res.statusCode, json: (() => { try { return JSON.parse(b); } catch { return null; } })() })); }); r.on('error', () => resolve({ status: 0, json: null })); if (d) r.write(d); r.end(); }); }
+(async () => {
+  const { port } = await pc.start({ log: () => {} });
+  let pass = 0, fail = 0; const ck = (n, ok, d) => { console.log((ok ? 'ok   ' : 'FAIL ') + n + (d ? ' :: ' + String(d).slice(0, 90) : '')); ok ? pass++ : fail++; };
+  const health = await req(port, '/health', 'GET'); ck('health 200 + version', health.status === 200 && health.json && health.json.version, health.json && health.json.version);
+  const dev = await req(port, '/api/device', 'GET'); ck('device probe cores>0', dev.json && (dev.json.cores || 0) > 0, 'cores=' + (dev.json && dev.json.cores));
+  const tool = await req(port, '/api/tools/call', 'POST', { tool: 'get_time' }); ck('agent tool roundtrip', tool.json && tool.json.ok === true);
+  const fleet = await req(port, '/api/fleet/stats', 'GET'); ck('fleet stats shape', fleet.json && fleet.json.ok && fleet.json.pooled);
+  const grant = await req(port, '/api/access/grant', 'POST', { label: 'smoke', ttl_min: 1 }); ck('access grant mints', grant.json && grant.json.ok && grant.json.token);
+  const rev = await req(port, '/api/access/revoke', 'POST', { id: grant.json && grant.json.id }); ck('access revoke', rev.json && rev.json.ok);
+  const prov = await req(port, '/api/providers', 'GET'); ck('providers catalog (GET)', prov.json && prov.json.ok && Array.isArray(prov.json.providers));
+  const remote = await req(port, '/api/remote/devices', 'GET'); ck('remote devices lists local', remote.json && (remote.json.devices || []).some(d => d.id === 'local'));
+  const conn = await req(port, '/api/connectors', 'GET'); ck('connectors endpoint', conn.status === 200);
+  const sov = await req(port, '/api/spine/overview', 'GET'); ck('spine overview + seeded providers', sov.json && sov.json.ok && sov.json.counts && (sov.json.providers || []).length >= 9, 'providers=' + (sov.json && (sov.json.providers || []).length));
+  const sbeat = await req(port, '/api/spine/heartbeat/beat', 'POST', { note: 'smoke' }); ck('spine heartbeat beats', sbeat.json && sbeat.json.ok && sbeat.json.beat && sbeat.json.beat.count >= 1);
+  const screate = await req(port, '/api/spine/agents/create', 'POST', { name: 'smoke-agent', soul: 'tester' }); ck('spine create agent', screate.json && screate.json.ok && screate.json.item && screate.json.item.id);
+  const slist = await req(port, '/api/spine/agents/list', 'GET'); ck('spine list agent persists', slist.json && slist.json.ok && (slist.json.items || []).some(x => x.name === 'smoke-agent'));
+  const sscan = await req(port, '/api/spine/migrate/scan', 'GET'); ck('spine migration scan runs', sscan.json && sscan.json.ok && typeof sscan.json.total === 'number');
+  const srun = await req(port, '/api/spine/agents/run', 'POST', {}); ck('spine agent-run guards empty goal', srun.json && srun.json.ok === false);
+  const sswarm = await req(port, '/api/spine/swarm/solve', 'POST', {}); ck('spine swarm-solve guards empty goal', sswarm.json && sswarm.json.ok === false);
+  const ssdlc = await req(port, '/api/spine/sdlc/run', 'POST', {}); ck('spine sdlc-run guards empty goal', ssdlc.json && ssdlc.json.ok === false);
+  const ssdlcL = await req(port, '/api/spine/sdlc/run', 'POST', { goal: 'smoke pipeline', stages: ['monitor'] }); ck('spine sdlc monitor-only stage runs', ssdlcL.json && ssdlcL.json.ok === true && (ssdlcL.json.stages || []).some(s => s.stage === 'monitor'));
+  const saud = await req(port, '/api/spine/audit/append', 'POST', { event: { t: 'smoke' } }); ck('spine audit append + hash', saud.json && saud.json.ok && saud.json.record && saud.json.record.hash);
+  const sav = await req(port, '/api/spine/audit/verify', 'GET'); ck('spine audit chain intact', sav.json && sav.json.ok && sav.json.intact === true);
+  const sdec = await req(port, '/api/spine/decide', 'POST', { options: [{ name: 'A', p_success: 0.9, payoff: 100 }, { name: 'B', p_success: 0.1, payoff: 100 }], trials: 3000 }); ck('spine neocortex decide picks +EV', sdec.json && sdec.json.ok && sdec.json.verdict === 'A');
+  const ssand = await req(port, '/api/spine/sandbox/run', 'POST', { code: 'console.log(2+2)' }); ck('spine sandbox runs node', ssand.json && ssand.json.ok === true && /4/.test(ssand.json.stdout || ''));
+  const ssbad = await req(port, '/api/spine/sandbox/run', 'POST', { code: 'process.exit(3)' }); ck('spine sandbox catches failure', ssbad.json && ssbad.json.ok === false);
+  const shw = await req(port, '/api/spine/hardware/probe', 'GET'); ck('spine hardware probe lists transports', shw.json && shw.json.ok && (shw.json.transports || []).length >= 7);
+  const slearn = await req(port, '/api/spine/learn/skill', 'POST', { name: 'smoke skill', goal: 'test', body: 'do x' }); ck('spine learn skill persists', slearn.json && slearn.json.ok && slearn.json.skill && slearn.json.skill.id);
+  const sln = await req(port, '/api/spine/earn/link', 'POST', { url: 'https://abuz8ai.com', campaign: 'smoke' }); ck('spine earn link utm-tagged', sln.json && sln.json.ok && sln.json.link && /utm_source/.test(sln.json.link.url || ''));
+  const slc = await req(port, '/api/spine/earn/click', 'POST', { id: sln.json && sln.json.link && sln.json.link.id }); ck('spine earn click recorded', slc.json && slc.json.ok && slc.json.recorded);
+  const sll = await req(port, '/api/spine/earn/ledger', 'GET'); ck('spine earn ledger counts', sll.json && sll.json.ok && sll.json.clicks >= 1);
+  const slk = await req(port, '/api/spine/license/check', 'GET'); ck('spine license check', slk.json && slk.json.ok && typeof slk.json.licensed === 'boolean');
+  const spc = await req(port, '/api/spine/project/create', 'POST', { name: 'smoke-proj' }); ck('spine project create + preview', spc.json && spc.json.ok && spc.json.preview && spc.json.files >= 1);
+  const spv = await req(port, '/api/spine/preview/smoke-proj/index.html', 'GET'); ck('spine live preview serves file', spv.status === 200);
+  const srr = await req(port, '/api/spine/repo/register', 'POST', { dir: process.cwd(), name: 'abuz8-os' }); ck('spine repo register', srr.json && srr.json.ok && srr.json.repo);
+  const sgt = await req(port, '/api/spine/git', 'POST', { repo: 'abuz8-os', action: 'status' }); ck('spine git status runs', sgt.json && sgt.json.ok && typeof sgt.json.output === 'string');
+  const smd = await req(port, '/v1/models', 'GET'); ck('mercury /v1/models lists abuz8', smd.json && smd.json.object === 'list' && (smd.json.data || []).some(m => m.id === 'abuz8'));
+  const sdep = await req(port, '/api/spine/studio/departments', 'GET'); ck('spine studio departments seeded', sdep.json && sdep.json.ok && sdep.json.seeded >= 10);
+  const ssb = await req(port, '/api/spine/studio/storyboard', 'POST', { title: 'Smoke', synopsis: 'A test story about a robot learning to paint.' }); ck('spine studio storyboard persists', ssb.json && ssb.json.storyboard_id);
+  const smv = await req(port, '/api/spine/studio/movie', 'POST', { title: 'Smoke', synopsis: 'A robot.', render: false }); ck('spine studio movie orchestrates', smv.json && smv.json.ok && smv.json.movie_id);
+  const savt = await req(port, '/api/spine/studio/avatar', 'POST', {}); ck('spine avatar wired (structured resp)', savt.json && typeof savt.json.ok === 'boolean');
+  const smob = await req(port, '/api/spine/mobile/client', 'POST', { name: 'smoke-ctl' }); ck('spine mobile client written', smob.json && smob.json.ok && smob.json.dir);
+  const s360 = await req(port, '/api/spine/studio/360', 'POST', { proj: 'demo-live' }); ck('spine 360 manifest', s360.json && s360.json.ok && Array.isArray(s360.json.images));
+  const scomp = await req(port, '/api/spine/computer/info', 'GET'); ck('spine computer-use info (win)', scomp.json && (scomp.json.ok === true ? scomp.json.screen.w > 0 : true));
+  const spg = await req(port, '/spine', 'GET'); ck('spine dashboard page serves', spg.status === 200);
+  const v360 = await req(port, '/360', 'GET'); ck('360 viewer page serves', v360.status === 200);
+  const spho = await req(port, '/api/spine/photogrammetry/reconstruct', 'POST', { images: ['nope.png'] }); ck('spine photogrammetry pipeline (guards/needs-key)', spho.json && spho.json.ok === false);
+  const sphl = await req(port, '/api/spine/photogrammetry/list', 'GET'); ck('spine photogrammetry list', sphl.json && sphl.json.ok && Array.isArray(sphl.json.models));
+  const sloc = await req(port, '/api/spine/photogrammetry/local', 'POST', { image: 'x.png' }); ck('spine local-triposr wired (graceful)', sloc.json && sloc.json.ok === false);
+  const seds = await req(port, '/api/spine/editor/save', 'POST', { name: 'smoke-tl', timeline: { clips: [{ dur: 1 }] } }); ck('spine editor save', seds.json && seds.json.ok && seds.json.id);
+  const sedr = await req(port, '/api/spine/editor/render', 'POST', { timeline: { name: 'smoke-tl', w: 320, h: 240, fps: 24, clips: [{ dur: 1, text: 'hi' }, { dur: 1 }] } }); ck('spine editor renders mp4 (ffmpeg)', sedr.json && sedr.json.ok === true && sedr.json.bytes > 0);
+  const sedp = await req(port, '/editor', 'GET'); ck('editor page serves', sedp.status === 200);
+  const rst = await req(port, '/api/reach/status', 'GET'); ck('reach status reports transports', rst.json && rst.json.ok && rst.json.transports && rst.json.transports.ssh && rst.json.vps_provisioning.auto_buy === false);
+  const rkg = await req(port, '/api/reach/ssh/keygen', 'POST', { name: 'smoke' }); ck('reach ssh keygen (ed25519)', rkg.json && rkg.json.ok && /^ssh-ed25519 /.test(rkg.json.public || ''));
+  const rha = await req(port, '/api/reach/ssh/hosts', 'POST', { name: 'smoke-host', host: '198.51.100.7', user: 'ubuntu', pass: 'x' }); ck('reach host add encrypts creds', rha.json && rha.json.ok && rha.json.host.auth === 'password(enc)');
+  const tro = await req(port, '/api/team/roster', 'GET'); ck('team roster shape', tro.json && tro.json.ok && Array.isArray(tro.json.team));
+  const trn = await req(port, '/api/team/run', 'POST', {}); ck('team run guards bad input', trn.json && trn.json.ok === false && /required|not found/.test(trn.json.error || ''));
+  const tdp = await req(port, '/api/team/dispatch', 'POST', {}); ck('team dispatch guards empty goal', tdp.json && tdp.json.ok === false);
+  console.log('\nSMOKE: ' + pass + ' ok / ' + fail + ' fail');
+  process.exit(fail === 0 ? 0 : 1);
+})().catch(e => { console.error('SMOKE ERR ' + (e.stack || e)); process.exit(2); });

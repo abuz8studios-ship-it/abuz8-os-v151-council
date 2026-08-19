@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#FAF8F5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ABUZ8">
+<link rel="manifest" href="/manifest.json">
+<title>ABUZ8 — Mobile</title>
+<style>
+  :root{ --bg:#FAF8F5; --bg2:#F4EFE7; --card:#FFFFFF; --card2:#F4EFE7; --line:#E8E1D5; --border2:#DBD0BF; --txt:#2A2520; --txt2:#6C6358; --txt3:#9B9186; --acc:#C8A55C; --acc2:#A9863F; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:'DM Sans','Segoe UI',system-ui,-apple-system,sans-serif}
+  body{display:flex;flex-direction:column;overscroll-behavior:none}
+  header{display:flex;align-items:center;gap:9px;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;background:linear-gradient(180deg,var(--bg2),transparent);position:sticky;top:0;z-index:5}
+  .logo{width:30px;height:30px;border-radius:9px;background:radial-gradient(circle at 50% 35%,#E6CE8E,#C8A55C 60%,#8C6E33);display:grid;place-items:center;font-weight:800;color:#06120c}
+  header b{font-size:16px;letter-spacing:.3px}
+  .hbtn{margin-left:auto;background:var(--card);border:1px solid var(--line);color:var(--txt2);border-radius:9px;padding:6px 9px;font-size:16px;line-height:1}
+  header .dot{width:8px;height:8px;border-radius:50%;background:var(--txt3)}
+  header .dot.on{background:var(--acc);box-shadow:0 0 8px var(--acc)}
+  main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .view{display:none;padding:8px 13px 150px}
+  .view.on{display:block}
+  .msg{max-width:88%;padding:10px 13px;border-radius:15px;margin:7px 0;font-size:15px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word}
+  .msg.u{background:var(--acc);color:#06120c;margin-left:auto;border-bottom-right-radius:5px}
+  .msg.a{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:5px}
+  .msg .who{font-size:10px;opacity:.6;margin-bottom:3px;letter-spacing:.3px}
+  .think{font-size:12px;color:var(--txt3);margin-bottom:6px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+  .chip{background:var(--card2);border:1px solid var(--line);color:var(--acc2);border-radius:11px;padding:2px 8px;font-size:11px}
+  .empty{color:var(--txt3);text-align:center;padding:46px 22px;font-size:14px;line-height:1.6}
+  .composer{position:fixed;left:0;right:0;bottom:54px;display:flex;gap:8px;align-items:flex-end;padding:9px 12px;background:linear-gradient(0deg,var(--bg) 78%,transparent);z-index:6}
+  .composer textarea{flex:1;background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:20px;padding:11px 15px;font-size:16px;resize:none;max-height:120px;outline:none;font-family:inherit}
+  .composer button{flex:none;width:46px;height:46px;border-radius:50%;border:none;background:var(--acc);color:#06120c;font-size:20px;font-weight:800}
+  .composer button.stop{background:#F2D9D2;color:#B0432E}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px;margin:10px 0}
+  .big-btn{width:100%;padding:18px;border:none;border-radius:16px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#06120c;font-size:17px;font-weight:800;margin:8px 0}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .qa{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 12px;text-align:center;font-size:14px;font-weight:600;color:var(--txt)}
+  .qa .ico{font-size:24px;display:block;margin-bottom:6px}
+  h3{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--txt3);margin:16px 2px 6px}
+  .act{font-size:13px;padding:8px 0;border-bottom:1px solid var(--line);color:var(--txt2)}
+  .act b{color:var(--txt)}
+  .muted{color:var(--txt3);font-size:12px;line-height:1.5}
+  .field{width:100%;background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:12px;padding:13px 14px;font-size:16px;outline:none;margin:7px 0}
+  nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--bg2);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:7}
+  nav a{flex:1;text-align:center;padding:8px 0 7px;color:var(--txt3);font-size:10.5px;text-decoration:none}
+  nav a .ico{font-size:21px;display:block;margin-bottom:2px}
+  nav a.on{color:var(--acc)}
+  .toast{position:fixed;left:50%;bottom:118px;transform:translateX(-50%);background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:10px 16px;border-radius:22px;font-size:13px;opacity:0;transition:.25s;z-index:30;pointer-events:none;max-width:90%}
+  .toast.show{opacity:1}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--txt3);border-top-color:var(--acc);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  /* connect overlay */
+  #connect{position:fixed;inset:0;background:var(--bg);z-index:50;display:none;flex-direction:column;justify-content:center;padding:28px;text-align:center}
+  #connect.on{display:flex}
+  #connect .big{width:64px;height:64px;border-radius:18px;background:radial-gradient(circle at 50% 35%,#E6CE8E,#C8A55C 60%,#8C6E33);display:grid;place-items:center;font-weight:800;color:#06120c;font-size:30px;margin:0 auto 14px}
+  /* sessions sheet */
+  #sheet{position:fixed;inset:0;background:rgba(42,37,32,.4);z-index:40;display:none}
+  #sheet.on{display:block}
+  #sheet .panel{position:absolute;top:0;left:0;bottom:0;width:82%;max-width:330px;background:var(--bg2);border-right:1px solid var(--line);padding:calc(env(safe-area-inset-top) + 14px) 12px 14px;overflow-y:auto}
+  .sess{padding:13px 12px;border-bottom:1px solid var(--line);font-size:14px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sess.new{color:var(--acc);font-weight:700}
+</style>
+</head>
+<body>
+<header><div class="logo">A</div><b>ABUZ8</b><button class="hbtn" id="hist-btn" title="History">&#9776;</button><button class="hbtn" id="new-btn" title="New chat">&#43;</button><span class="dot" id="dot"></span></header>
+<main>
+  <section class="view on" id="v-chat">
+    <div id="thread"></div>
+  </section>
+  <section class="view" id="v-brief">
+    <button class="big-btn" id="brief-btn">&#128075; Brief me</button>
+    <div class="card" id="brief-out"><span class="muted">Your live briefing &mdash; time, weather, missions, and (if connected) calendar &amp; inbox &mdash; spoken aloud.</span></div>
+    <h3>Quick actions</h3>
+    <div class="grid">
+      <div class="qa" onclick="quick('what is the weather today')"><span class="ico">&#9925;</span>Weather</div>
+      <div class="qa" onclick="quick('what time is it')"><span class="ico">&#128336;</span>Time</div>
+      <div class="qa" onclick="go('chat')"><span class="ico">&#128172;</span>Ask anything</div>
+      <div class="qa" onclick="speakTest()"><span class="ico">&#128266;</span>Test voice</div>
+    </div>
+  </section>
+  <section class="view" id="v-act">
+    <h3>Live activity <span id="act-spin"></span></h3>
+    <div id="act-list"><div class="muted">Loading&hellip;</div></div>
+  </section>
+  <section class="view" id="v-more">
+    <div class="card"><div style="font-weight:700;margin-bottom:6px">Connected to your home server</div><div class="muted" id="status-line">Checking&hellip;</div><button class="hbtn" style="margin-top:10px;width:100%;padding:11px" id="change-server">Change server / key</button></div>
+    <h3>Spoken replies</h3>
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between" onclick="toggleSpeak()">
+      <span>&#128266; Read answers aloud</span><span id="speak-pill" style="padding:4px 12px;border-radius:20px;background:var(--card2);color:var(--txt3);font-size:12px">off</span>
+    </div>
+    <h3>About</h3>
+    <div class="card muted" style="font-size:12.5px">This is the ABUZ8 mobile app &mdash; a direct chat line to the sovereign agent running on your home server. The brain, vision, memory, and OS-control run on the server; your phone is the remote. Add it to your home screen to use it like a native app.<br><br><b style="color:var(--txt2)">Tip:</b> open it from your server&rsquo;s address on Wi-Fi (or a tunnel when away). Voice <i>input</i> needs an HTTPS link; text + spoken replies work over Wi-Fi as-is.</div>
+  </section>
+</main>
+<div class="composer" id="composer">
+  <textarea id="inp" rows="1" placeholder="Message ABUZ8&hellip;" enterkeyhint="send"></textarea>
+  <button id="send">&#8593;</button>
+</div>
+<nav id="tabs">
+  <a data-go="chat" class="on"><span class="ico">&#128172;</span>Chat</a>
+  <a data-go="brief"><span class="ico">&#128075;</span>Brief</a>
+  <a data-go="act"><span class="ico">&#9889;</span>Activity</a>
+  <a data-go="more"><span class="ico">&#9881;</span>More</a>
+</nav>
+
+<div id="sheet"><div class="panel"><h3 style="margin-top:0">Your chats</h3><div id="sess-list"><div class="muted">Loading&hellip;</div></div></div></div>
+
+<div id="connect">
+  <div class="big">A</div>
+  <div style="font-size:20px;font-weight:800;margin-bottom:4px">Connect to ABUZ8</div>
+  <div class="muted" style="margin-bottom:14px">Point this app at the ABUZ8 OS running on your computer / home server.</div>
+  <input class="field" id="c-server" placeholder="Server (e.g. http://192.168.1.50:8900)" autocapitalize="off" autocomplete="off" spellcheck="false">
+  <input class="field" id="c-key" placeholder="Access key (from the desktop &middot; optional on LAN)" autocapitalize="off" autocomplete="off" spellcheck="false">
+  <button class="big-btn" id="c-go">Connect</button>
+  <div class="muted" id="c-msg" style="margin-top:8px;min-height:18px"></div>
+  <div class="muted" style="margin-top:14px;font-size:11.5px">Leave the server blank if you opened this page directly from the server&rsquo;s address &mdash; it will use this connection.</div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+const $=s=>document.querySelector(s);
+const url=new URL(location.href);
+let BASE=localStorage.getItem('abuz8_base')||'';
+let KEY=url.searchParams.get('key')||localStorage.getItem('abuz8_key')||'';
+if(url.searchParams.get('key')) localStorage.setItem('abuz8_key',KEY);
+let speak=localStorage.getItem('m_speak')==='1';
+let curSession=null, streaming=false, stopFlag=false;
+function base(p){ return (BASE||'')+p; }
+function hdr(h){ h=h||{}; if(KEY) h['x-abuz8-key']=KEY; return h; }
+async function api(p,opts){ opts=opts||{}; opts.headers=hdr(opts.headers); const r=await fetch(base(p),opts); return r.json(); }
+function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2400); }
+function esc(s){ return String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function scrollBottom(){ const m=$('main'); m.scrollTop=m.scrollHeight; }
+
+/* ── connection ── */
+async function testConn(){ try{ const r=await fetch(base('/health'),{headers:hdr()}); return r.ok; }catch{ return false; } }
+function showConnect(msg){ $('#connect').classList.add('on'); $('#c-server').value=BASE; $('#c-key').value=KEY; if(msg)$('#c-msg').textContent=msg; }
+function hideConnect(){ $('#connect').classList.remove('on'); }
+$('#c-go').onclick=async()=>{ const s=$('#c-server').value.trim().replace(/\/+$/,''); const k=$('#c-key').value.trim(); BASE=s; KEY=k; $('#c-msg').innerHTML='<span class="spin"></span> connecting…';
+  const ok=await testConn(); if(ok){ localStorage.setItem('abuz8_base',BASE); localStorage.setItem('abuz8_key',KEY); hideConnect(); $('#dot').classList.add('on'); toast('Connected'); loadStatus(); } else { $('#c-msg').textContent='Could not reach that server. Check the address, that ABUZ8 is running, and that you are on the same network (or a tunnel).'; } };
+$('#change-server').onclick=()=>showConnect('');
+
+async function ping(){ const ok=await testConn(); $('#dot').classList.toggle('on',ok); return ok; }
+
+/* ── chat (streaming, Manus-style) ── */
+const thread=[];
+const EMPTY='<div class="empty">Talk to ABUZ8 running on your home server.<br>It can reason, run tools, browse, and control the machine &mdash; you just watch it work.</div>';
+function render(){ const t=$('#thread'); if(!thread.length){ t.innerHTML=EMPTY; return; }
+  t.innerHTML=thread.map(m=>{
+    if(m.role==='u') return `<div class="msg u">${esc(m.text)}</div>`;
+    const busy=(m.note||(!m.text&&m.live));
+    const strip=busy?`<div class="think">${m.note?('<span class="spin"></span> '+esc(m.note)):'<span class="spin"></span> thinking…'}${(m.tools||[]).slice(-4).map(x=>`<span class="chip">&#9881; ${esc(x)}</span>`).join('')}</div>`:'';
+    return `<div class="msg a"><div class="who">${esc(m.brain||'ABUZ8')}</div>${strip}${esc(m.text||'')}</div>`;
+  }).join(''); scrollBottom(); }
+
+async function streamSend(text){
+  thread.push({role:'u',text}); const ai={role:'a',text:'',brain:'',note:'',tools:[],live:true}; thread.push(ai); render();
+  streaming=true; stopFlag=false; setSendBtn(true);
+  try{
+    const res=await fetch(base('/api/chat/live'),{method:'POST',headers:hdr({'Content-Type':'application/json'}),body:JSON.stringify({content:text})});
+    if(!res.ok||!res.body) throw new Error('no stream');
+    const rd=res.body.getReader(); const dec=new TextDecoder(); let buf='';
+    while(true){ if(stopFlag){ try{rd.cancel()}catch{} break; }
+      const {done,value}=await rd.read(); if(done) break; buf+=dec.decode(value,{stream:true});
+      let i; while((i=buf.indexOf('\n\n'))>=0){ const raw=buf.slice(0,i); buf=buf.slice(i+2); const mm=raw.match(/^data: ([\s\S]*)$/); if(!mm) continue; let o; try{o=JSON.parse(mm[1])}catch{continue;}
+        if(typeof o.note==='string'){ ai.note=o.note; render(); }
+        if(o.tool&&o.tool.name){ ai.tools.push(o.tool.name); render(); }
+        if(typeof o.token==='string'){ ai.text+=o.token; ai.note=''; render(); }
+        if(o.done){ ai.brain=o.brain||ai.brain; }
+      }
+    }
+    if(!ai.text && !stopFlag){ // stream produced nothing → fall back to blocking
+      const j=await api('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:text})});
+      ai.text=j.response||j.error||'(no reply)'; ai.brain=j.brain||'ABUZ8';
+    }
+  }catch(e){
+    try{ const j=await api('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:text})}); ai.text=j.response||j.error||'(no reply)'; ai.brain=j.brain||'ABUZ8'; }
+    catch(e2){ ai.text='Connection error: '+e2.message+'. Pull down More → Change server to reconnect.'; }
+  }
+  ai.note=''; ai.live=false; streaming=false; setSendBtn(false); render();
+  if(speak && ai.text) tts(ai.text);
+}
+function setSendBtn(on){ const b=$('#send'); b.innerHTML=on?'&#9632;':'&#8593;'; b.classList.toggle('stop',on); }
+async function send(text){ text=(text||$('#inp').value).trim();
+  if(streaming){ stopFlag=true; return; }
+  if(!text) return; $('#inp').value=''; $('#inp').style.height='auto';
+  await streamSend(text);
+}
+$('#send').onclick=()=>send();
+$('#inp').addEventListener('input',e=>{ e.target.style.height='auto'; e.target.style.height=Math.min(120,e.target.scrollHeight)+'px'; });
+$('#inp').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(); } });
+function quick(t){ go('chat'); send(t); }
+
+/* ── sessions ── */
+$('#hist-btn').onclick=openSessions;
+$('#new-btn').onclick=()=>newChat();
+function closeSheet(){ $('#sheet').classList.remove('on'); }
+$('#sheet').addEventListener('click',e=>{ if(e.target.id==='sheet') closeSheet(); });
+async function openSessions(){ $('#sheet').classList.add('on'); try{ const j=await api('/api/sessions'); const ss=j.sessions||[]; $('#sess-list').innerHTML=`<div class="sess new" onclick="newChat()">&#43; New chat</div>`+(ss.length?ss.slice(0,50).map(s=>`<div class="sess" onclick="loadSess('${esc(String(s.id))}')">${esc(s.title||s.name||'Chat')}</div>`).join(''):'<div class="muted" style="padding:12px">No saved chats yet.</div>'); }catch(e){ $('#sess-list').innerHTML='<div class="muted" style="padding:12px">Could not load chats.</div>'; } }
+async function loadSess(id){ try{ const j=await api('/api/session?id='+encodeURIComponent(id)); const s=j.session||{}; const msgs=s.messages||s.thread||s.turns||[]; thread.length=0; msgs.forEach(m=>thread.push({role:(String(m.role||'').charAt(0)==='u'?'u':'a'),text:m.text||m.content||'',brain:m.brain})); curSession=id; render(); }catch(e){ toast('Could not open chat'); } closeSheet(); go('chat'); }
+function newChat(){ thread.length=0; curSession=null; render(); closeSheet(); go('chat'); $('#inp').focus(); }
+
+/* ── tabs ── */
+function go(v){ document.querySelectorAll('.view').forEach(x=>x.classList.remove('on')); $('#v-'+v).classList.add('on');
+  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.go===v));
+  $('#composer').style.display=v==='chat'?'flex':'none';
+  if(v==='act') loadActivity(); if(v==='more') loadStatus(); }
+document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>go(a.dataset.go));
+
+/* ── voice ── */
+let curAudio=null;
+async function tts(text){ try{ const clean=text.replace(/```[\s\S]*?```/g,' code ').replace(/[*#`>_]/g,'').slice(0,1200);
+  const r=await fetch(base('/api/tts'),{method:'POST',headers:hdr({'Content-Type':'application/json'}),body:JSON.stringify({text:clean})}); if(!r.ok)return;
+  const u=URL.createObjectURL(await r.blob()); if(curAudio)curAudio.pause(); curAudio=new Audio(u); curAudio.play().catch(()=>{}); }catch{} }
+function speakTest(){ tts('Salaam. ABUZ8 mobile is online and connected to your home server.'); toast('Speaking…'); }
+function toggleSpeak(){ speak=!speak; localStorage.setItem('m_speak',speak?'1':'0'); const p=$('#speak-pill'); p.textContent=speak?'on':'off'; p.style.color=speak?'var(--acc)':'var(--txt3)'; }
+
+/* ── brief / activity / status ── */
+$('#brief-btn').onclick=async()=>{ const o=$('#brief-out'); o.innerHTML='<span class="spin"></span> preparing your briefing…';
+  try{ const j=await api('/api/jarvis/brief'); const b=j.briefing||j.error||'Nothing to brief.'; o.textContent=b; tts(b); }catch(e){ o.textContent='Error: '+e.message; } };
+async function loadActivity(){ $('#act-spin').innerHTML='<span class="spin"></span>';
+  try{ const j=await api('/api/activity'); const items=j.events||j.items||[]; $('#act-list').innerHTML=items.length?items.slice(0,40).map(x=>`<div class="act"><b>${esc(x.label||x.type||'event')}</b>${x.detail?' — '+esc(String(x.detail).slice(0,80)):''}</div>`).join(''):'<div class="muted">No activity yet.</div>'; }catch(e){ $('#act-list').innerHTML='<div class="muted">Could not load.</div>'; }
+  $('#act-spin').innerHTML=''; }
+async function loadStatus(){ try{ const j=await api('/api/status'); $('#status-line').textContent='Brain: '+(j.primary_brain||j.brain||'local')+' · '+(BASE||location.host); }catch{ $('#status-line').textContent='Not reachable — tap Change server.'; }
+  const p=$('#speak-pill'); p.textContent=speak?'on':'off'; p.style.color=speak?'var(--acc)':'var(--txt3)'; }
+
+/* ── boot ── */
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
+(async function init(){
+  render();
+  const ok=await ping();
+  if(!ok){ showConnect(''); } else { $('#dot').classList.add('on'); }
+  setInterval(ping,9000);
+  if(url.searchParams.get('go')) go(url.searchParams.get('go'));
+})();
+</script>
+</body>
+</html>

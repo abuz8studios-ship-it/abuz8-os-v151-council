@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ABUZ8 Spine — Command</title>
+<style>
+  :root { --bg:#FAF8F5; --ink:#1c1a17; --muted:#6b655c; --gold:#C8A55C; --line:#e7e1d8; --card:#fff; --ok:#2e8b57; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:'DM Sans',system-ui,Segoe UI,Arial,sans-serif; }
+  header { padding:20px 28px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:14px; }
+  header .dot { width:11px; height:11px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 4px rgba(46,139,87,.15); }
+  header h1 { font-size:18px; margin:0; font-weight:700; letter-spacing:.2px; }
+  header .v { color:var(--muted); font-size:13px; margin-left:auto; }
+  main { padding:24px 28px; max-width:1180px; margin:0 auto; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  .card .n { font-size:30px; font-weight:700; }
+  .card .l { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.6px; margin-top:4px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin:28px 0 12px; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { background:#fff; border:1px solid var(--line); border-radius:999px; padding:6px 13px; font-size:13px; }
+  .chip b { color:var(--gold); }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:12px; }
+  button { background:var(--gold); color:#1c1a17; border:0; border-radius:10px; padding:10px 16px; font-weight:600; cursor:pointer; font-size:14px; }
+  button.alt { background:#fff; border:1px solid var(--line); }
+  textarea,input { width:100%; border:1px solid var(--line); border-radius:10px; padding:10px; font-family:inherit; font-size:14px; background:#fff; }
+  pre { background:#f4efe7; border:1px solid var(--line); border-radius:10px; padding:12px; overflow:auto; font-size:12.5px; max-height:340px; }
+  .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <span class="dot"></span>
+  <h1>ABUZ8 Spine</h1>
+  <span class="v" id="ver">…</span>
+</header>
+<main>
+  <div class="grid" id="counts"></div>
+  <h2>Provider stack</h2>
+  <div class="row" id="providers"></div>
+  <h2>Studio — script → screen</h2>
+  <div class="panel">
+    <input id="title" placeholder="Title (e.g. The Last Lighthouse)" />
+    <textarea id="syn" rows="3" placeholder="Synopsis / paste a book passage…" style="margin-top:8px"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button onclick="storyboard()">Storyboard it</button>
+      <button class="alt" onclick="movie(true)">Storyboard + render</button>
+      <span class="muted" id="studioStatus" style="align-self:center"></span>
+    </div>
+    <pre id="studioOut" style="display:none"></pre>
+  </div>
+  <h2>Neocortex decision (10k scenarios)</h2>
+  <div class="panel">
+    <div class="row"><button onclick="decide()">Run sample decision</button><span class="muted" id="decideStatus" style="align-self:center"></span></div>
+    <pre id="decideOut" style="display:none"></pre>
+  </div>
+  <h2>Audit chain</h2>
+  <div class="panel"><div class="row"><button class="alt" onclick="audit()">Verify integrity</button><span class="muted" id="auditStatus" style="align-self:center"></span></div></div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+async function api(path, body) { const r = await fetch(path, body ? { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body) } : {}); return r.json(); }
+async function load() {
+  const o = await api('/api/spine/overview');
+  $('ver').textContent = 'v' + o.version + ' · ' + o.primitives.length + ' primitives';
+  $('counts').innerHTML = Object.entries(o.counts).map(([k,v]) => `<div class="card"><div class="n">${v}</div><div class="l">${k}</div></div>`).join('');
+  $('providers').innerHTML = o.providers.map(p => `<span class="chip"><b>${p.name}</b> · ${p.models} models</span>`).join('');
+}
+async function storyboard() { $('studioStatus').textContent='thinking…'; const r = await api('/api/spine/studio/storyboard', { title:$('title').value||'Untitled', synopsis:$('syn').value, style:'Pixar 3D' }); $('studioStatus').textContent = r.ok ? `${r.scenes} scenes / ${r.shots} shots · ${r.brain}` : 'parse retry'; $('studioOut').style.display='block'; $('studioOut').textContent = JSON.stringify(r.storyboard, null, 2); }
+async function movie(render) { $('studioStatus').textContent = render?'rendering on GPU…':'planning…'; const r = await api('/api/spine/studio/movie', { title:$('title').value||'Untitled', synopsis:$('syn').value, style:'Pixar 3D', render, max_shots:2 }); $('studioStatus').textContent = `${r.rendered||0} rendered · ComfyUI ${r.comfyui_up?'up':'down'}`; $('studioOut').style.display='block'; $('studioOut').textContent = JSON.stringify(r.assets||r.render_plan, null, 2); }
+async function decide() { $('decideStatus').textContent='10k trials…'; const r = await api('/api/spine/decide', { options:[{name:'ship-now',p_success:0.8,payoff:500,downside:-50},{name:'wait-a-week',p_success:0.55,payoff:520,downside:-10}], trials:10000 }); $('decideStatus').textContent = 'verdict: ' + r.verdict; $('decideOut').style.display='block'; $('decideOut').textContent = JSON.stringify(r.ranked, null, 2); }
+async function audit() { const r = await api('/api/spine/audit/verify'); $('auditStatus').textContent = r.intact ? `intact · ${r.length} entries` : 'BROKEN at #' + r.broken_at; }
+load();
+</script>
+</body>
+</html>

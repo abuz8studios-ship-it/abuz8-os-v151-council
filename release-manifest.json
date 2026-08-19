@@ -1,0 +1,9 @@
+{
+  "product": "ABUZ8 OS",
+  "channel": "stable",
+  "version": "1.34.1",
+  "installer_url": "https://github.com/abuz8studios-ship-it/abuz8-os/releases/latest/download/ABUZ8-OS-Setup.exe",
+  "notes": "ABUZ8 OS sovereign desktop agent. See CHANGELOG.md. Self-update reads this manifest; the installer URL serves the latest signed Windows build once published as a GitHub Release.",
+  "min_supported": "1.24.0",
+  "released": "2026-06-24"
+}

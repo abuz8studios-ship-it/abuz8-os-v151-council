@@ -1,0 +1,103 @@
+name: ci
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax-check the backend (portable-core.js + src mirror)
+        run: |
+          node --check portable-core.js
+          node --check src/portable-core.js
+      - name: Confirm root↔src backend mirror is in sync
+        run: |
+          if ! diff -q portable-core.js src/portable-core.js >/dev/null; then
+            echo "::error::portable-core.js and src/portable-core.js differ — keep the mirror in sync"; exit 1
+          fi
+      - name: Reject stray control bytes (mojibake guard)
+        run: |
+          if grep -qP "[\x00-\x08\x0e-\x1f]" portable-core.js src/portable-core.js; then
+            echo "::error::control bytes found in source"; exit 1
+          fi
+      - name: Syntax-check the renderer's inline script
+        run: |
+          node -e '
+            const fs=require("fs");
+            const h=fs.readFileSync("src/renderer/index.html","utf8");
+            const m=/<script>([\s\S]*?)<\/script>\s*<\/body>/i.exec(h);
+            if(!m){console.error("main <script> not found");process.exit(1);}
+            fs.writeFileSync("/tmp/_chk.mjs", m[1]);
+            require("child_process").execSync("node --check /tmp/_chk.mjs",{stdio:"inherit"});
+            console.log("renderer OK");
+          '
+      - name: Route-dup lint (no shadowed/dead routes)
+        run: node scripts/lint-routes.js src/portable-core.js
+
+  # Behavioral smoke suite — boots the engine headless + asserts key endpoints actually work.
+  # Parse-checks prove the file compiles; this proves it BEHAVES (catches dead/broken routes,
+  # the gate the dual review flagged). Zero-dependency: pure node.
+  smoke:
+    runs-on: ubuntu-latest
+    needs: syntax
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Behavioral smoke test (headless boot + endpoint asserts)
+        run: node scripts/smoke.js
+
+  # Cross-platform installers. Mac/Linux artifacts MUST be built on their own
+  # runners — electron-builder cannot produce (or sign) a macOS app from Windows.
+  # Triggered manually or on a version tag; artifacts uploaded per-OS.
+  release:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    needs: syntax
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows + Linux are the shipping platforms — these MUST pass.
+          - { os: windows-latest, experimental: false }
+          - { os: ubuntu-latest,  experimental: false }
+          # macOS is DEFERRED to the Apple phase ("Windows-first → prove true → then Apple").
+          # It needs a real Mac signing cert (CSC) + .icns icon, which are founder items, and
+          # electron-builder's mac packaging has its own quirks. Attempt it best-effort so the
+          # release stays green for what we actually ship — NOT a faked success: the mac artifact
+          # simply isn't produced yet. Flip experimental→false once the Apple toolchain is ready.
+          - { os: macos-latest,   experimental: true }
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install build deps (electron + electron-builder)
+        working-directory: src
+        run: npm install --no-audit --no-fund
+      - name: Build installer for ${{ matrix.os }}
+        working-directory: src
+        run: npm run dist -- --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Code signing is wired via secrets when present; unsigned builds still produce installers.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: abuz8-os-${{ matrix.os }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
+          if-no-files-found: warn

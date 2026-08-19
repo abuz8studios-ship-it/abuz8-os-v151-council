@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ABUZ8 360° Viewer</title>
+<style>
+  :root { --bg:#FAF8F5; --ink:#1c1a17; --muted:#6b655c; --gold:#C8A55C; --line:#e7e1d8; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:'DM Sans',system-ui,Segoe UI,Arial,sans-serif; }
+  header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
+  header h1 { font-size:17px; margin:0; }
+  header .muted { color:var(--muted); font-size:13px; }
+  .stage { display:grid; place-items:center; padding:24px; }
+  canvas, model-viewer { background:#fff; border:1px solid var(--line); border-radius:14px; max-width:100%; width:900px; height:560px; cursor:grab; touch-action:none; }
+  .hint { text-align:center; color:var(--muted); font-size:13px; margin-top:10px; }
+  .bar { display:flex; gap:8px; justify-content:center; margin-top:12px; }
+  button { background:var(--gold); color:#1c1a17; border:0; border-radius:10px; padding:8px 14px; font-weight:600; cursor:pointer; }
+  a.dl { color:var(--gold); font-weight:600; }
+</style>
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js" onerror="window.__mvFail=1"></script>
+</head>
+<body>
+<header><h1>ABUZ8 360° Viewer</h1><span class="muted" id="meta">drag to orbit</span></header>
+<div class="stage" id="stage"></div>
+<script>
+const q = new URLSearchParams(location.search);
+const stage = document.getElementById('stage');
+const model = q.get('model');
+if (model) {
+  // TRUE 3D: orbit the reconstructed .glb mesh (camera-controls + auto-rotate = real 360)
+  document.getElementById('meta').textContent = 'reconstructed 3D mesh · drag to orbit · auto-rotating';
+  stage.innerHTML = '<model-viewer src="' + model.replace(/"/g,'') + '" camera-controls auto-rotate shadow-intensity="1" exposure="1" ar style="--poster-color:transparent"></model-viewer>' +
+    '<div class="hint">Reconstructed mesh — <a class="dl" href="' + model.replace(/"/g,'') + '" download>download .glb</a>. If the model does not appear, your build may be offline (model-viewer needs network) — the .glb link still works.</div>';
+} else {
+  // Turntable fallback: ?images=a.png,b.png  OR  ?proj=<spine project>
+  const c = document.createElement('canvas'); c.width=900; c.height=560; stage.appendChild(c);
+  const hint = document.createElement('div'); hint.className='hint'; hint.textContent='Loading frames…'; stage.appendChild(hint);
+  const bar = document.createElement('div'); bar.className='bar'; bar.innerHTML='<button id="sp">Auto-spin</button><button id="st" style="background:#fff;border:1px solid #e7e1d8">Stop</button>'; stage.appendChild(bar);
+  const ctx=c.getContext('2d'); let imgs=[], idx=0, dragging=false, lastX=0, timer=null;
+  async function manifest(){ if(q.get('images')) return q.get('images').split(',').filter(Boolean); const src=q.get('manifest')||(q.get('proj')?('/api/spine/studio/360?proj='+encodeURIComponent(q.get('proj'))):null); if(src){ try{ const r=await (await fetch(src)).json(); return r.images||[]; }catch{} } return []; }
+  function draw(){ ctx.clearRect(0,0,c.width,c.height); if(!imgs.length){ ctx.fillStyle='#6b655c'; ctx.font='16px sans-serif'; ctx.textAlign='center'; ctx.fillText('No frames — pass ?model=<glb>, ?images=a,b or ?proj=NAME', c.width/2, c.height/2); return; } const im=imgs[((idx%imgs.length)+imgs.length)%imgs.length]; if(im&&im.complete){ const s=Math.min(c.width/im.width,c.height/im.height), w=im.width*s, h=im.height*s; ctx.drawImage(im,(c.width-w)/2,(c.height-h)/2,w,h); } ctx.fillStyle='#C8A55C'; ctx.font='13px sans-serif'; ctx.textAlign='left'; ctx.fillText('frame '+((((idx%imgs.length)+imgs.length)%imgs.length)+1)+' / '+imgs.length,16,26); }
+  function stop(){ if(timer){clearInterval(timer);timer=null;} }
+  document.getElementById('sp').onclick=()=>{ stop(); timer=setInterval(()=>{idx++;draw();},90); };
+  document.getElementById('st').onclick=stop;
+  c.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;stop();c.style.cursor='grabbing';});
+  window.addEventListener('pointerup',()=>{dragging=false;c.style.cursor='grab';});
+  window.addEventListener('pointermove',e=>{ if(!dragging||!imgs.length)return; const dx=e.clientX-lastX; if(Math.abs(dx)>=12){ idx+=dx>0?1:-1; lastX=e.clientX; draw(); } });
+  (async()=>{ const frames=await manifest(); hint.textContent=frames.length?(frames.length+' frames — drag or auto-spin'):'No frames. Append ?model=<glb>, ?images=… or ?proj=…'; imgs=frames.map(src=>{ const im=new Image(); im.onload=draw; im.src=src; return im; }); draw(); })();
+}
+</script>
+</body>
+</html>

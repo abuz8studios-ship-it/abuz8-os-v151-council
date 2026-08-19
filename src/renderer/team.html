@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ABUZ8 OS — Team</title>
+<style>
+  :root{ --bg:#FAF8F5; --card:#ffffff; --ink:#1c1a17; --ink2:#6b655c; --ink3:#9a938a;
+         --accent:#C8A55C; --accent-dim:#b08f44; --border:#e7e1d8; --ok:#2e7d57; --shadow:0 10px 30px rgba(42,37,32,.10); }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 'DM Sans',-apple-system,Segoe UI,Roboto,sans-serif}
+  header{padding:18px 26px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;background:#fff}
+  header .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-dim));display:grid;place-items:center;color:#fff;font-weight:800;font-size:18px}
+  header h1{font-size:18px;margin:0;font-weight:700}
+  header .sub{color:var(--ink2);font-size:12.5px}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px}
+  .dispatch{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:var(--shadow);margin-bottom:22px}
+  .dispatch h2{margin:0 0 4px;font-size:15px}
+  .dispatch p{margin:0 0 12px;color:var(--ink2);font-size:12.5px}
+  .row{display:flex;gap:10px}
+  input,textarea,select{font:inherit;color:var(--ink);background:#fff;border:1px solid var(--border);border-radius:11px;padding:11px 13px;outline:none;width:100%}
+  input:focus,textarea:focus{border-color:var(--accent)}
+  button{font:inherit;font-weight:700;cursor:pointer;border:none;border-radius:11px;padding:11px 18px;background:linear-gradient(135deg,var(--accent),var(--accent-dim));color:#fff;box-shadow:0 5px 14px rgba(200,165,92,.26)}
+  button.ghost{background:#fff;color:var(--ink);border:1px solid var(--border);box-shadow:none}
+  button:disabled{opacity:.55;cursor:default}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:14px}
+  .soul{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;transition:.14s;box-shadow:var(--shadow)}
+  .soul:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .soul .cs{font-weight:700;font-size:14.5px}
+  .soul .role{color:var(--ink2);font-size:12px;margin-top:3px;min-height:32px}
+  .soul .brain{margin-top:9px;font-size:11px;color:var(--accent-dim);font-weight:600}
+  .chip{display:inline-block;background:#f3eee4;color:var(--accent-dim);border-radius:20px;padding:2px 9px;font-size:11px;font-weight:600}
+  #out{margin-top:18px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:var(--shadow);display:none}
+  #out.show{display:block}
+  #out .meta{font-size:12px;color:var(--ink2);margin-bottom:9px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  #out .ans{white-space:pre-wrap;font-size:13.5px}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .muted{color:var(--ink3)}
+  a.back{color:var(--ink2);text-decoration:none;font-size:12.5px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">A</div>
+  <div style="flex:1">
+    <h1>ABUZ8 Team</h1>
+    <div class="sub">Your sovereign executive souls — run one, or let the CEO route the work.</div>
+  </div>
+  <a class="back" href="/">← dashboard</a>
+</header>
+
+<div class="wrap">
+  <div class="dispatch">
+    <h2>⚡ CEO dispatch</h2>
+    <p>Give the company a goal. The CEO soul routes it to the right department head, who executes it.</p>
+    <div class="row">
+      <input id="goal" placeholder="e.g. Draft this week's revenue plan" />
+      <button id="go" onclick="dispatch()">Dispatch</button>
+    </div>
+  </div>
+
+  <div id="roster-head" class="muted" style="margin:6px 2px 10px;font-size:12.5px">Loading the team…</div>
+  <div class="grid" id="grid"></div>
+
+  <div id="out"></div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let SOULS = [];
+
+async function api(path, body){
+  const opt = body ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {};
+  const r = await fetch(path, opt); return r.json();
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+async function loadRoster(){
+  try{
+    const r = await api('/api/team/roster');
+    SOULS = (r.team||[]).filter(s=>s.callsign);
+    $('#roster-head').textContent = SOULS.length + ' souls on the team — click one to run it directly';
+    $('#grid').innerHTML = SOULS.map(s=>`
+      <div class="soul" onclick="runSoul('${esc(s.callsign)}')">
+        <div class="cs">${esc(s.name||s.callsign)}</div>
+        <div class="role">${esc(s.role||'')}</div>
+        <div class="brain">${s.brain?('🧠 '+esc(s.brain)):'<span class="muted">local brain</span>'}</div>
+      </div>`).join('');
+  }catch(e){ $('#roster-head').textContent = 'Could not load the team ('+e+')'; }
+}
+
+function showRunning(label){
+  const o=$('#out'); o.classList.add('show');
+  o.innerHTML = `<div class="meta"><span class="spin"></span> <b>${esc(label)}</b> is working… <span class="muted">(souls reason on the routed brain — a few seconds)</span></div>`;
+}
+function showResult(meta, answer){
+  const o=$('#out'); o.classList.add('show');
+  o.innerHTML = `<div class="meta">${meta}</div><div class="ans">${esc(answer||'(no answer)')}</div>`;
+}
+
+async function runSoul(callsign){
+  const goal = prompt('What should '+callsign+' do?'); if(!goal) return;
+  showRunning(callsign);
+  try{
+    const r = await api('/api/team/run', {soul:callsign, goal, max_steps:1});
+    if(!r.ok) return showResult('<span class="chip">error</span>', r.error||'failed');
+    showResult(`<span class="chip">${esc(r.name||callsign)}</span> routed→ <b>${esc(r.routed_brain||'auto')}</b> · served by <b>${esc(r.brain||'?')}</b>`, r.answer);
+  }catch(e){ showResult('<span class="chip">error</span>', String(e)); }
+}
+
+async function dispatch(){
+  const goal = $('#goal').value.trim(); if(!goal) return;
+  $('#go').disabled=true; showRunning('CEO');
+  try{
+    const r = await api('/api/team/dispatch', {goal, max_steps:1});
+    if(!r.ok){ showResult('<span class="chip">error</span>', r.error||'failed'); }
+    else {
+      const w=r.result||{};
+      showResult(`CEO routed to <span class="chip">${esc(r.routed_to)}</span> · served by <b>${esc(w.brain||'?')}</b><br><span class="muted">reason: ${esc((r.route_reason||'').slice(0,160))}</span>`, w.answer);
+    }
+  }catch(e){ showResult('<span class="chip">error</span>', String(e)); }
+  $('#go').disabled=false;
+}
+$('#goal').addEventListener('keydown',e=>{ if(e.key==='Enter') dispatch(); });
+loadRoster();
+</script>
+</body>
+</html>
